@@ -630,10 +630,6 @@ See [Operations Runbook](docs/runbook.md) for deploy, rollback, incident respons
 
 ## 17. AI Assistance Disclosure
 
-AI assistance was used to help draft documentation, explain Docker Compose and GitHub Actions concepts, and propose CI, security, and deployment commands.
+ChatGPT was used to help draft documentation, explain Docker Compose and GitHub Actions concepts, and propose CI, security, and deployment commands.
 
 All configuration changes, security settings, testing results, and deployment outcomes should be independently reviewed and validated.
-
-## License
-
-No license is currently declared for this repository.
