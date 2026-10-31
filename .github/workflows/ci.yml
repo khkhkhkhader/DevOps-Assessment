@@ -1,5 +1,5 @@
 
-name: Flask CI - Docker Hub
+name: Flask CI - Security - Docker Hub
 
 on:
   push:
@@ -41,8 +41,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest ruff
 
-      # Unit tests mock MySQL; generate disposable values for app import.
-      # No real database credentials are required in this job.
+      # Generate temporary secrets for mocked unit tests.
       - name: Generate temporary test secrets
         shell: bash
         run: |
@@ -55,9 +54,40 @@ jobs:
       - name: Run tests
         run: python -m pytest -q tests/
 
+  security:
+    name: Dependency and Image Security
+    needs: test
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Audit Python dependencies
+        run: |
+          python -m pip install pip-audit
+          python -m pip_audit -r flaskapp/requirements.txt
+
+      - name: Build local image for security scan
+        run: docker build -t bucketlist:security ./flaskapp
+
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: bucketlist:security
+          format: table
+          exit-code: '1'
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+
   docker:
     name: Build and Push to Docker Hub
-    needs: test
+    needs: [test, security]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
