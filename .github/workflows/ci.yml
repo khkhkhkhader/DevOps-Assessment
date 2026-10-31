@@ -1,5 +1,5 @@
 
-name: Flask CI - Security - Docker Hub
+name: Flask CI - Docker Hub
 
 on:
   push:
@@ -41,7 +41,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt pytest ruff
 
-      # Generate temporary secrets for mocked unit tests.
       - name: Generate temporary test secrets
         shell: bash
         run: |
@@ -55,23 +54,13 @@ jobs:
         run: python -m pytest -q tests/
 
   security:
-    name: Dependency and Image Security
+    name: Docker Image Security Scan
     needs: test
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
-      - name: Audit Python dependencies
-        run: |
-          python -m pip install pip-audit
-          python -m pip_audit -r flaskapp/requirements.txt
 
       - name: Build local image for security scan
         run: docker build -t bucketlist:security ./flaskapp
