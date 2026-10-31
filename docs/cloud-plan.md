@@ -1,0 +1,3 @@
+# Cost-aware cloud hosting plan
+
+Start with a small single VM running Docker Compose behind an HTTPS reverse proxy, private DB networking, restricted SSH and firewall, encrypted disk and scheduled off-host backups. Price the VM, storage, egress, domain and backup retention using the provider's current calculator; set budget alerts. This minimizes fixed cost but requires manual patching, backup tests and monitoring and has a single point of failure. As traffic grows, move MySQL to managed DB, app to a managed container service, and store secrets in a managed secret store. Compare monthly costs and reliability before migration. No cloud deployment or pricing verification has been performed.

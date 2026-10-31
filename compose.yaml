@@ -1,0 +1,62 @@
+services:
+  mysql:
+    build: ./mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: BucketList
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_app_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    secrets: [mysql_app_password, mysql_root_password]
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$(cat /run/secrets/mysql_app_password) mysql -h 127.0.0.1 -u appuser -D BucketList -e 'SELECT 1' >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks: [internal]
+
+  flask:
+    image: ${DOCKERHUB_USERNAME:?Set DOCKERHUB_USERNAME}/bucketlist:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5002:5002"
+    environment:
+      MYSQL_DATABASE_HOST: mysql
+      MYSQL_DATABASE_USER: appuser
+      MYSQL_DATABASE_DB: BucketList
+      MYSQL_DATABASE_PASSWORD_FILE: /run/secrets/mysql_app_password
+      FLASK_SECRET_KEY_FILE: /run/secrets/flask_secret_key
+      SESSION_COOKIE_SECURE: "false" # Local HTTP only; use HTTPS for production
+    secrets: [mysql_app_password, flask_secret_key]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5002/readiness', timeout=4).read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [internal]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+secrets:
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+  mysql_app_password:
+    file: ./secrets/mysql_app_password.txt
+  flask_secret_key:
+    file: ./secrets/flask_secret_key.txt
+
+volumes:
+  mysql_data:
+
+networks:
+  internal:

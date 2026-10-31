@@ -1,0 +1,84 @@
+
+name: Flask CI - Docker Hub
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint and Tests
+    runs-on: ubuntu-22.04
+
+    defaults:
+      run:
+        working-directory: flaskapp
+
+    env:
+      MYSQL_DATABASE_USER: appuser
+      MYSQL_DATABASE_HOST: localhost
+      MYSQL_DATABASE_DB: BucketList
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: pip
+          cache-dependency-path: flaskapp/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt pytest ruff
+
+      # Unit tests mock MySQL; generate disposable values for app import.
+      # No real database credentials are required in this job.
+      - name: Generate temporary test secrets
+        shell: bash
+        run: |
+          echo "FLASK_SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
+          echo "MYSQL_DATABASE_PASSWORD=$(python -c 'import secrets; print(secrets.token_hex(32))')" >> "$GITHUB_ENV"
+
+      - name: Lint critical errors
+        run: ruff check . --select E4,E7,E9,F63,F7,F82
+
+      - name: Run tests
+        run: python -m pytest -q tests/
+
+  docker:
+    name: Build and Push to Docker Hub
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./flaskapp
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/bucketlist:sha-${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/bucketlist:latest

@@ -1,0 +1,8 @@
+secrets/*.txt
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+*.pre-release
+.previous-image-tag
