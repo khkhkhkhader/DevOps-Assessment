@@ -5,6 +5,8 @@ A containerized Flask web application backed by MySQL.
 
 This project demonstrates Docker Compose deployment, GitHub Actions CI, automated testing, security scanning, Docker Hub image publishing, secure secret management, and manual deployment and rollback.
 
+> **Verified evidence:** [CI workflow, tests, Docker Hub, deployment health and rollback screenshots](#15-cicd-deployment--rollback-evidence) · **Operations:** [Runbook](docs/runbook.md) · **Security:** [Security notes](docs/security.md) · **Cloud:** [Cloud plan](docs/cloud-plan.md)
+
 ## 1. Architecture
 
 ```text
@@ -66,7 +68,13 @@ mysql/
 secrets/
   mysql_root_password.txt
   mysql_app_password.txt
-  flask_secret_key.txt
+  README.md                # Secret files are generated locally
+
+docs/
+  runbook.md
+  security.md
+  cloud-plan.md
+  evidence/                # CI, deployment and rollback screenshots
 
 compose.yaml
 README.md
@@ -154,7 +162,7 @@ Expected file permissions:
 -rw-r--r-- flask_secret_key.txt
 ```
 
-**Security note:** Permission `644` allows other local users to read these files if they can access their directory. The `secrets/` directory uses `700` to restrict access. Permission `600` is preferable when compatible with container access requirements.
+**Security note:** Permission `644` allows other local users to read these files if they can access their directory. The `secrets/` directory uses `700` to restrict access for other host users. Permission `600` is preferable when compatible with container access requirements; file-backed secrets are not encrypted by Docker Compose.
 
 ### Step 4 — How Docker Compose Secrets Work
 
@@ -572,24 +580,55 @@ For production use, additional considerations include:
 - Disaster recovery planning.
 - Safe database migrations.
 
-## 15. Assessment Evidence
+## 15. CI/CD, Deployment & Rollback Evidence
 
-Recommended evidence for the assessment submission:
+The screenshots below were captured during an actual GitHub Actions run and Docker Compose deployment. They document the observed outcomes; they do not imply that security findings were resolved or that a post-rollback health check was performed.
 
-- GitHub Actions successful CI run.
-- Unit test and lint output.
-- Failed-test demonstration blocking image publishing.
-- pip-audit security scan results.
-- Trivy security scan results.
-- Successful Docker Hub image push.
-- Docker Compose running containers.
-- Application health and readiness results.
-- Manual rollback demonstration.
-- Troubleshooting evidence showing diagnosis and resolution.
+### CI workflow execution
 
-Only submit screenshots and logs from operations actually performed.
+![Successful GitHub Actions workflow](docs/evidence/01-ci-success.png)
 
-## 16. AI Assistance Disclosure
+**Figure 1 — CI run #14:** The `Clarify IMAGE_TAG usage in .env.example` run on `main` shows successful **Lint and Unit Tests**, **Security Scans - Report Only**, and **Build and Push to Docker Hub** jobs. The annotations include a security-scan step reporting exit code 1, despite the overall report-only job being marked successful. Security findings are not release blockers in this workflow.
+
+### Automated tests and lint
+
+![Ruff and pytest results](docs/evidence/02-tests.png)
+
+**Figure 2 — Quality checks:** Ruff reports `All checks passed!`; pytest reports **19 passed, 50 warnings**. The warnings include a deprecation warning from `Flask-MySQL`.
+
+### Docker Hub image publishing
+
+![Docker Hub image tags](docs/evidence/03-dockerhub-tags.png)
+
+**Figure 3 — Published images:** The `khkhkhader99/bucketlist` Docker Hub repository displays `latest` and commit-specific `sha-...` tags, demonstrating image publishing and availability of versioned releases.
+
+### Deployment and service health
+
+![Docker Compose and health checks](docs/evidence/04-compose-health.png)
+
+**Figure 4 — Running services:** `docker compose ps` shows Flask and MySQL as healthy. Flask runs from `khkhkhader99/bucketlist:latest` with host port `127.0.0.1:5002`. Both `/healthz` and `/readiness` return HTTP **200 OK**.
+
+### Manual rollback
+
+![Manual rollback to prior image tag](docs/evidence/05-rollback.png)
+
+**Figure 5 — Rollback evidence:** The running Flask image changes from `khkhkhader99/bucketlist:latest` to `khkhkhader99/bucketlist:sha-2a12fc4f89fa5f47eb1e104ff8e404470cb4c760`. Docker Compose reports that the previous image was pulled, MySQL was healthy, and the Flask container started. A post-rollback HTTP readiness response is **not shown** in this screenshot and should be captured separately if required.
+
+### Optional additional evidence
+
+- Capture `curl -i http://127.0.0.1:5002/readiness` **after rollback** to demonstrate end-to-end readiness of the reverted version.
+- Capture the individual `pip-audit` and `Trivy` log outputs to document security findings in detail.
+- Capture a deliberate failed-test run only if performed; do not label the current successful run as failure-gate evidence.
+
+See [Operations Runbook](docs/runbook.md) for deploy, rollback, incident response and troubleshooting commands.
+
+## 16. Documentation and operations
+
+- [Operations Runbook — deployment, rollback, incident response and troubleshooting](docs/runbook.md)
+- [Security controls, scan policy and limitations](docs/security.md)
+- [Cloud deployment and cost plan (proposal)](docs/cloud-plan.md)
+
+## 17. AI Assistance Disclosure
 
 AI assistance was used to help draft documentation, explain Docker Compose and GitHub Actions concepts, and propose CI, security, and deployment commands.
 
