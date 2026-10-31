@@ -77,7 +77,7 @@ jobs:
         run: docker build -t bucketlist:security ./flaskapp
 
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.33.0
         with:
           image-ref: bucketlist:security
           format: table
